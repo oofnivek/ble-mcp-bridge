@@ -29,6 +29,10 @@ fun hexToBytes(value: String): ByteArray {
 
 fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 
+/** Returns the first candidate with any required property, or the first candidate if none has one. */
+fun <T> preferSupporting(candidates: List<T>, requiredProperties: Int, properties: (T) -> Int): T? =
+    candidates.firstOrNull { properties(it) and requiredProperties != 0 } ?: candidates.firstOrNull()
+
 /** Explains a Bluetooth disconnect status. A null status means the bridge closed the connection. */
 fun disconnectReason(status: Int?): String = when (status) {
     null -> "The bridge closed the connection"

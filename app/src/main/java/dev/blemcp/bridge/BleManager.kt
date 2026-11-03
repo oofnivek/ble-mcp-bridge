@@ -247,7 +247,11 @@ class BleManager(private val context: Context) {
     suspend fun read(address: String, serviceUuid: String, characteristicUuid: String): JSONObject {
         val connection = connection(address)
         val gatt = connection.requireGatt()
-        val characteristic = connection.characteristic(serviceUuid, characteristicUuid)
+        val characteristic = connection.characteristic(
+            serviceUuid,
+            characteristicUuid,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+        )
         val value = connection.runOperation { gatt.readCharacteristic(characteristic) }
         return JSONObject()
             .put("hex", value.toHex())
@@ -264,7 +268,11 @@ class BleManager(private val context: Context) {
     ): JSONObject {
         val connection = connection(address)
         val gatt = connection.requireGatt()
-        val characteristic = connection.characteristic(serviceUuid, characteristicUuid)
+        val characteristic = connection.characteristic(
+            serviceUuid,
+            characteristicUuid,
+            BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
+        )
         val bytes = hexToBytes(hex)
         val writeType = if (withResponse) {
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
@@ -293,7 +301,11 @@ class BleManager(private val context: Context) {
     ): JSONObject {
         val connection = connection(address)
         val gatt = connection.requireGatt()
-        val characteristic = connection.characteristic(serviceUuid, characteristicUuid)
+        val characteristic = connection.characteristic(
+            serviceUuid,
+            characteristicUuid,
+            BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_INDICATE,
+        )
         val descriptor = characteristic.getDescriptor(CCCD_UUID)
             ?: throw BleException("This characteristic does not support notifications")
         val properties = characteristic.properties
@@ -360,11 +372,18 @@ class BleManager(private val context: Context) {
         fun requireGatt(): BluetoothGatt =
             gatt ?: throw BleException("Connection to $address is not ready")
 
-        fun characteristic(serviceUuid: String, characteristicUuid: String): BluetoothGattCharacteristic {
+        /** Some devices reuse a UUID, so this prefers the characteristic that supports the operation. */
+        fun characteristic(
+            serviceUuid: String,
+            characteristicUuid: String,
+            requiredProperties: Int,
+        ): BluetoothGattCharacteristic {
             val service = requireGatt().getService(parseUuid(serviceUuid))
                 ?: throw BleException("Service not found: $serviceUuid")
-            return service.getCharacteristic(parseUuid(characteristicUuid))
-                ?: throw BleException("Characteristic not found: $characteristicUuid")
+            val uuid = parseUuid(characteristicUuid)
+            return preferSupporting(service.characteristics.filter { it.uuid == uuid }, requiredProperties) {
+                it.properties
+            } ?: throw BleException("Characteristic not found: $characteristicUuid")
         }
 
         /** Android allows one GATT operation at a time, so each one waits for the previous result. */

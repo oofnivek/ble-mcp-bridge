@@ -94,6 +94,18 @@ class McpProtocolTest {
     }
 
     @Test
+    fun `characteristics sharing a uuid are chosen by supported operation`() {
+        val notify = "notify" to 0x10
+        val write = "write" to 0x08
+        val candidates = listOf(notify, write)
+
+        assertEquals(write, preferSupporting(candidates, 0x08 or 0x04) { it.second })
+        assertEquals(notify, preferSupporting(candidates, 0x10 or 0x20) { it.second })
+        assertEquals(notify, preferSupporting(candidates, 0x02) { it.second })
+        assertNull(preferSupporting(emptyList<Pair<String, Int>>(), 0x02) { it.second })
+    }
+
+    @Test
     fun `disconnect reasons explain common statuses`() {
         assertEquals("The device ended the connection", disconnectReason(19))
         assertEquals("The bridge closed the connection", disconnectReason(null))
