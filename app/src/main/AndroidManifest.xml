@@ -23,7 +23,7 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@android:drawable/stat_sys_data_bluetooth"
+        android:icon="@mipmap/ic_launcher"
         android:label="BLE MCP Bridge">
 
         <activity
